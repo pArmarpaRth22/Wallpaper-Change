@@ -1,27 +1,19 @@
 {
     "manifest_version": 3,
-    "name": "Chrome Wallpaper Changer",
+    "name": "Wallpaper Manager",
     "version": "1.0",
-    "description": "Change the wallpaper of your Chrome browser.",
-    "permissions": [
-        "activeTab",
-        "scripting",
-        "storage"
-    ],
+    "description": "An extension to search, categorize, preview, set, and randomize new tab wallpapers.",
     "action": {
         "default_popup": "popup.html",
-        "default_icon": {
-            "16": "icons/icon16.png",
-            "48": "icons/icon48.png",
-            "128": "icons/icon128.png"
-        }
+        "default_icon": "icon16.png"
     },
-    "icons": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-    },
-    "background": {
-        "service_worker": "background.js"
+    "permissions": [
+        "storage"
+    ],
+    "host_permissions": [
+        "https://api.pexels.com/*"
+    ],
+    "chrome_url_overrides": {
+        "newtab": "popup.html"
     }
 }

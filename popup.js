@@ -1,121 +1,68 @@
 document.addEventListener("DOMContentLoaded", function () {
-  const searchButton = document.getElementById("search-button");
-  const randomButton = document.getElementById("random-button");
-  const wallpaperContainer = document.getElementById("wallpaper-container");
+  const searchButton = document.getElementById("searchButton");
+  const randomizeButton = document.getElementById("randomize");
+  const searchInput = document.getElementById("search");
+  const wallpapersDiv = document.getElementById("wallpapers");
+  const categories = document.querySelectorAll(".category");
 
-  const pexelsApiKey =
-    "7UyOihbPrpGM94gs7wfLvgRaEl7QlL23PDfllWokMPbB13kk9YezSLZ9"; // Replace with your actual Pexels API key
+  const API_KEY = "7UyOihbPrpGM94gs7wfLvgRaEl7QlL23PDfllWokMPbB13kk9YezSLZ9";
 
-  searchButton.addEventListener("click", () => {
-    const query = document.getElementById("search").value;
-    searchWallpapers(query);
-  });
-
-  randomButton.addEventListener("click", () => {
-    getRandomWallpaper();
-  });
-
-  async function searchWallpapers(query) {
-    try {
-      const response = await fetch(
-        `https://api.pexels.com/v1/search?query=${query}&per_page=10`,
-        {
-          headers: {
-            Authorization: pexelsApiKey,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+  async function fetchWallpapers(query) {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${query}&per_page=10`,
+      {
+        headers: {
+          Authorization: API_KEY,
+        },
       }
-      const data = await response.json();
-      displayWallpapers(data.photos);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      alert("Failed to load wallpapers. Please try again later.");
-    }
-  }
-
-  async function getRandomWallpaper() {
-    try {
-      const response = await fetch(
-        `https://api.pexels.com/v1/curated?per_page=1`,
-        {
-          headers: {
-            Authorization: pexelsApiKey,
-          },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      displayWallpapers(data.photos);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      alert("Failed to load wallpaper. Please try again later.");
-    }
+    );
+    const data = await response.json();
+    return data.photos;
   }
 
   function displayWallpapers(wallpapers) {
-    wallpaperContainer.innerHTML = "";
+    wallpapersDiv.innerHTML = "";
     wallpapers.forEach((wallpaper) => {
       const img = document.createElement("img");
-      img.src = wallpaper.src.medium; // Adjust according to Pexels API response structure
-      img.addEventListener("click", () => {
-        setWallpaper(wallpaper.src.original); // Adjust according to Pexels API response structure
-        saveWallpaper(wallpaper.src.original); // Save selected wallpaper URL
-      });
-      wallpaperContainer.appendChild(img);
+      img.src = wallpaper.src.medium;
+      img.className = "wallpaper";
+      img.onclick = () => setWallpaper(wallpaper.src.original);
+      wallpapersDiv.appendChild(img);
     });
+  }
+
+  async function searchWallpapers() {
+    const query = searchInput.value;
+    const wallpapers = await fetchWallpapers(query);
+    displayWallpapers(wallpapers);
+  }
+
+  async function fetchWallpapersByCategory(category) {
+    const wallpapers = await fetchWallpapers(category);
+    displayWallpapers(wallpapers);
+  }
+
+  async function randomizeWallpaper() {
+    const wallpapers = await fetchWallpapers("random");
+    const randomWallpaper =
+      wallpapers[Math.floor(Math.random() * wallpapers.length)];
+    setWallpaper(randomWallpaper.src.original);
   }
 
   function setWallpaper(url) {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (!tabId) {
-        console.error("Unable to get active tab ID.");
-        return;
-      }
-
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: tabId },
-          func: (url) => {
-            document.body.style.backgroundImage = `url(${url})`;
-            document.body.style.backgroundSize = "cover"; // Optional: Adjust background size as needed
-            document.body.style.backgroundPosition = "center"; // Optional: Adjust background position as needed
-            document.body.style.backgroundRepeat = "no-repeat"; // Optional: Adjust background repeat as needed
-          },
-          args: [url],
-        },
-        () => {
-          if (chrome.runtime.lastError) {
-            console.error("Execution error:", chrome.runtime.lastError.message);
-            alert("Failed to set wallpaper. Please try again later.");
-          }
-        }
-      );
+    chrome.storage.sync.set({ wallpaper: url }, function () {
+      console.log("Wallpaper set to " + url);
+      // Apply the wallpaper to the background (can be customized based on the use case)
+      document.body.style.backgroundImage = `url(${url})`;
     });
   }
 
-  function saveWallpaper(url) {
-    chrome.storage.sync.set({ wallpaperUrl: url }, () => {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "Error saving wallpaper:",
-          chrome.runtime.lastError.message
-        );
-      } else {
-        console.log("Wallpaper saved successfully:", url);
-      }
-    });
-  }
+  searchButton.addEventListener("click", searchWallpapers);
+  randomizeButton.addEventListener("click", randomizeWallpaper);
 
-  // Load saved wallpaper on popup load
-  chrome.storage.sync.get("wallpaperUrl", (data) => {
-    if (data.wallpaperUrl) {
-      setWallpaper(data.wallpaperUrl);
-    }
+  categories.forEach((category) => {
+    category.addEventListener("click", () => {
+      fetchWallpapersByCategory(category.dataset.category);
+    });
   });
 });
